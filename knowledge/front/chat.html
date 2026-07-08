@@ -1,0 +1,843 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>掌柜智库</title>
+<style>
+  /* ========== Reset & Base ========== */
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', 'PingFang SC', 'Microsoft YaHei', sans-serif;
+    background: #f5f5f5;
+    height: 100dvh;
+    overflow: hidden;
+    color: #1d1d1f;
+  }
+
+  /* ========== Layout ========== */
+  .app { display: flex; height: 100dvh; }
+
+  /* ========== Sidebar ========== */
+  .sidebar {
+    width: 260px; min-width: 260px;
+    background: #f7f7f8;
+    display: flex; flex-direction: column;
+    border-right: 1px solid #e5e5ea;
+  }
+
+  .sidebar-top {
+    padding: 12px;
+    display: flex; flex-direction: column; gap: 8px;
+    border-bottom: 1px solid #e5e5ea;
+  }
+
+  .sidebar-logo-row {
+    display: flex; align-items: center; gap: 8px;
+    padding: 4px 0;
+  }
+
+  .sidebar-robot-icon {
+    width: 28px; height: 28px;
+    flex-shrink: 0;
+  }
+
+  .sidebar-logo-text {
+    font-size: 15px; font-weight: 600;
+    color: #1d1d1f;
+  }
+
+  .btn-new-chat {
+    display: flex; align-items: center; gap: 8px;
+    padding: 10px 14px;
+    background: #f0f0f2;
+    color: #1d1d1f;
+    border: none; border-radius: 10px;
+    font-size: 14px; cursor: pointer;
+    transition: background 0.15s;
+  }
+  .btn-new-chat:hover { background: #e5e5ea; }
+  .btn-new-chat svg { width: 16px; height: 16px; flex-shrink: 0; }
+
+  .session-list {
+    flex: 1; overflow-y: auto;
+    padding: 4px 6px;
+  }
+  .session-list::-webkit-scrollbar { width: 4px; }
+  .session-list::-webkit-scrollbar-thumb { background: #d0d0d8; border-radius: 4px; }
+
+  .session-item {
+    display: flex; align-items: center;
+    padding: 8px 10px; border-radius: 8px;
+    cursor: pointer; color: #3a3a3f;
+    font-size: 13px; line-height: 1.4;
+    margin-bottom: 2px;
+    transition: background 0.12s;
+    position: relative;
+  }
+  .session-item:hover { background: #ececf0; }
+  .session-item.active { background: #e5e5ea; color: #1d1d1f; font-weight: 500; }
+
+  .session-item-icon {
+    width: 20px; height: 20px; flex-shrink: 0; margin-right: 8px;
+    color: #8e8e93;
+  }
+
+  .session-title {
+    flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis;
+  }
+
+  .session-meta {
+    font-size: 11px; color: #aeaeb2; margin-left: 6px; flex-shrink: 0;
+  }
+
+  .session-delete {
+    width: 22px; height: 22px;
+    display: none; align-items: center; justify-content: center;
+    border-radius: 4px; border: none; background: transparent;
+    cursor: pointer; color: #aeaeb2; font-size: 14px;
+    flex-shrink: 0; margin-left: 4px;
+  }
+  .session-item:hover .session-meta { display: none; }
+  .session-item:hover .session-delete { display: flex; }
+  .session-delete:hover { background: #f0f0f2; color: #e05050; }
+
+  .empty-sessions {
+    padding: 24px 16px; text-align: center;
+    color: #aeaeb2; font-size: 13px;
+  }
+
+  /* ========== Main Chat Area ========== */
+  .main {
+    flex: 1; display: flex; flex-direction: column;
+    background: #fff; min-width: 0;
+  }
+
+  /* Messages */
+  .chat-area {
+    flex: 1; overflow-y: auto;
+    padding: 20px 16px;
+  }
+  .chat-area::-webkit-scrollbar { width: 6px; }
+  .chat-area::-webkit-scrollbar-thumb { background: #d0d0d8; border-radius: 4px; }
+
+  .msg-row { display: flex; margin-bottom: 28px; gap: 10px; }
+  .msg-row.user { justify-content: flex-end; }
+  .msg-row.assistant { justify-content: flex-start; }
+
+  .msg-avatar {
+    width: 30px; height: 30px; border-radius: 50%;
+    flex-shrink: 0; display: flex; align-items: center; justify-content: center;
+    font-size: 13px; font-weight: 500;
+    overflow: hidden;
+  }
+  .msg-avatar svg { width: 30px; height: 30px; }
+  .msg-row.user .msg-avatar {
+    background: #4f6ef7; color: white; order: 2;
+  }
+  .msg-row.assistant .msg-avatar {
+    background: #f0f0f2; order: 1;
+  }
+
+  .msg-col {
+    display: flex; flex-direction: column;
+    max-width: 75%;
+  }
+
+  .msg-bubble {
+    padding: 10px 14px;
+    border-radius: 14px; font-size: 14px;
+    line-height: 1.7; word-break: break-word;
+  }
+  .msg-row.user .msg-bubble {
+    background: #4f6ef7; color: white;
+    border-bottom-right-radius: 4px;
+  }
+  .msg-row.assistant .msg-bubble {
+    background: #f7f7f8; color: #1d1d1f;
+    border-bottom-left-radius: 4px;
+  }
+
+  /* Streaming cursor */
+  .streaming-cursor {
+    display: inline; animation: blink 1s step-end infinite;
+    color: #4f6ef7; font-weight: 500;
+  }
+  @keyframes blink { 50% { opacity: 0; } }
+
+  /* Node status cards — inside the assistant bubble */
+  .node-status-bar {
+    display: flex; gap: 6px; flex-wrap: wrap;
+    margin-top: 8px; padding: 8px 10px;
+    background: #fff; border-radius: 10px;
+    border: 1px solid #e5e5ea;
+    font-size: 12px;
+  }
+  .node-pill {
+    display: inline-flex; align-items: center; gap: 4px;
+    padding: 3px 8px; border-radius: 12px;
+    font-size: 11px; white-space: nowrap;
+  }
+  .node-pill.done {
+    background: #e8f5e9; color: #2e7d32;
+  }
+  .node-pill.done::before {
+    content: ''; display: inline-block;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #4caf50;
+  }
+  .node-pill.running {
+    background: #e3f2fd; color: #1565c0;
+    animation: pulse-pill 1.5s infinite;
+  }
+  .node-pill.running::before {
+    content: ''; display: inline-block;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #2196f3;
+  }
+  .node-pill.pending {
+    background: #f5f5f5; color: #9e9e9e;
+  }
+  .node-pill.pending::before {
+    content: ''; display: inline-block;
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #bdbdbd;
+  }
+  @keyframes pulse-pill { 50% { opacity: 0.7; } }
+
+  /* Typing indicator */
+  .typing-dots { display: inline-flex; gap: 4px; padding: 4px 0; }
+  .typing-dots span {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: #c0c0c8; animation: dot-bounce 1.4s infinite both;
+  }
+  .typing-dots span:nth-child(2) { animation-delay: 0.2s; }
+  .typing-dots span:nth-child(3) { animation-delay: 0.4s; }
+  @keyframes dot-bounce {
+    0%, 80%, 100% { transform: scale(0.6); }
+    40% { transform: scale(1); }
+  }
+
+  /* ========== Input Area ========== */
+  .input-area {
+    padding: 16px 20px 20px;
+    background: #fff;
+    border-top: 1px solid #f0f0f2;
+  }
+  .input-row {
+    display: flex; align-items: center; gap: 8px;
+    background: #f7f7f8; border: 1.5px solid #e5e5ea;
+    border-radius: 28px; padding: 4px 4px 4px 18px;
+    transition: border-color 0.15s, box-shadow 0.15s;
+  }
+  .input-row:focus-within {
+    border-color: #4f6ef7;
+    box-shadow: 0 0 0 3px rgba(79, 110, 247, 0.1);
+    background: #fff;
+  }
+  .input-row input {
+    flex: 1; border: none; outline: none;
+    font-size: 14px; background: transparent;
+    color: #1d1d1f; min-width: 0;
+  }
+  .input-row input::placeholder { color: #aeaeb2; }
+
+  .btn-stream-toggle {
+    border: none; border-radius: 20px;
+    padding: 6px 12px; font-size: 12px; cursor: pointer;
+    background: transparent; color: #8e8e93;
+    transition: all 0.15s; white-space: nowrap;
+    flex-shrink: 0;
+  }
+  .btn-stream-toggle:hover { color: #4f6ef7; }
+  .btn-stream-toggle.active {
+    background: #eef0ff; color: #4f6ef7; font-weight: 500;
+  }
+
+  .btn-send {
+    width: 34px; height: 34px; border-radius: 50%;
+    border: none; background: #4f6ef7; color: white;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    transition: background 0.15s, transform 0.1s;
+    flex-shrink: 0;
+  }
+  .btn-send:hover { background: #3d5ce5; }
+  .btn-send:active { transform: scale(0.94); }
+  .btn-send:disabled { background: #c7c7cc; cursor: not-allowed; }
+  .btn-send svg { width: 16px; height: 16px; }
+
+  .btn-stop {
+    width: 34px; height: 34px; border-radius: 50%;
+    border: 1px solid #e5e5ea; background: #fff;
+    cursor: pointer; display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0;
+  }
+  .btn-stop:hover { background: #f7f7f8; }
+  .btn-stop svg { width: 14px; height: 14px; color: #8e8e93; }
+
+  /* ========== Toast ========== */
+  .toast {
+    position: fixed; top: 20px; left: 50%; transform: translateX(-50%);
+    padding: 10px 20px; border-radius: 10px; font-size: 13px;
+    z-index: 999; pointer-events: none;
+    animation: toast-in 0.25s ease, toast-out 0.25s 2s ease forwards;
+  }
+  .toast.success { background: #e8f5e9; color: #2e7d32; }
+  .toast.error   { background: #fce4ec; color: #c62828; }
+  @keyframes toast-in  { from { opacity:0; transform:translateX(-50%) translateY(-10px); } }
+  @keyframes toast-out { to   { opacity:0; transform:translateX(-50%) translateY(-10px); } }
+
+  /* ========== Mobile Back Button ========== */
+  .btn-back-sidebar {
+    display: none;
+    padding: 10px 16px; font-size: 13px;
+    background: none; border: none;
+    color: #4f6ef7; cursor: pointer;
+  }
+
+  @media (max-width: 640px) {
+    .sidebar { display: none; }
+    .sidebar.open { display: flex; position: fixed; top: 0; left: 0; bottom: 0; z-index: 10; }
+    .main { width: 100%; }
+    .btn-back-sidebar { display: inline-flex; align-items: center; gap: 4px; }
+  }
+</style>
+</head>
+<body>
+
+<div class="app" id="app">
+  <!-- ========== Sidebar ========== -->
+  <aside class="sidebar" id="sidebar">
+    <div class="sidebar-top">
+      <div class="sidebar-logo-row">
+        <!-- Robot SVG icon (left side) -->
+        <svg class="sidebar-robot-icon" viewBox="0 0 64 64" fill="none">
+          <defs>
+            <linearGradient id="robotGrad" x1="0" y1="0" x2="1" y2="1">
+              <stop offset="0%" stop-color="#667eea"/>
+              <stop offset="100%" stop-color="#764ba2"/>
+            </linearGradient>
+          </defs>
+          <rect x="6" y="18" width="52" height="38" rx="10" fill="url(#robotGrad)"/>
+          <circle cx="20" cy="36" r="5" fill="white"/>
+          <circle cx="44" cy="36" r="5" fill="white"/>
+          <circle cx="20" cy="36" r="2.5" fill="#1d1d1f"/>
+          <circle cx="44" cy="36" r="2.5" fill="#1d1d1f"/>
+          <rect x="22" y="48" width="20" height="4" rx="2" fill="white" opacity="0.8"/>
+          <rect x="32" y="8" width="8" height="12" rx="3" fill="url(#robotGrad)"/>
+          <line x1="24" y1="14" x2="18" y2="8" stroke="#667eea" stroke-width="3" stroke-linecap="round"/>
+          <line x1="40" y1="14" x2="46" y2="8" stroke="#667eea" stroke-width="3" stroke-linecap="round"/>
+          <circle cx="32" cy="8" r="3" fill="#764ba2"/>
+        </svg>
+        <span class="sidebar-logo-text">掌柜智库</span>
+      </div>
+      <button class="btn-new-chat" onclick="newChat()">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <line x1="12" y1="5" x2="12" y2="19"/><line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
+        新对话
+      </button>
+    </div>
+    <div class="session-list" id="sessionList">
+      <div class="empty-sessions">暂无历史对话</div>
+    </div>
+  </aside>
+
+  <!-- ========== Main Chat Area ========== -->
+  <main class="main" id="main">
+    <!-- Chat messages (always visible, shows welcome message on first load) -->
+    <div class="chat-area" id="chatArea" style="display:none"></div>
+
+    <!-- Input area (always visible below chat) -->
+    <div class="input-area" id="inputArea">
+      <div class="input-row">
+        <input
+          type="text" id="msgInput"
+          placeholder="输入你的问题…"
+          autocomplete="off"
+          onkeydown="if(event.key==='Enter'&&!event.shiftKey){event.preventDefault();sendMessage();}"
+        />
+        <button class="btn-stream-toggle active" id="btnStream" onclick="toggleStream()"
+          title="切换输出模式">流式</button>
+        <button class="btn-send" id="btnSend" onclick="sendMessage()" aria-label="发送">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+            <line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/>
+          </svg>
+        </button>
+      </div>
+    </div>
+  </main>
+</div>
+
+<!-- Toast container -->
+<div id="toastContainer"></div>
+
+<script>
+// ===========================
+//   SVG Icons
+// ===========================
+const ROBOT_SVG = `<svg viewBox="0 0 64 64" fill="none">
+  <rect x="6" y="18" width="52" height="38" rx="10" fill="url(#chatGrad)"/>
+  <circle cx="20" cy="36" r="5" fill="white"/>
+  <circle cx="44" cy="36" r="5" fill="white"/>
+  <circle cx="20" cy="36" r="2.5" fill="#1d1d1f"/>
+  <circle cx="44" cy="36" r="2.5" fill="#1d1d1f"/>
+  <rect x="22" y="48" width="20" height="4" rx="2" fill="white" opacity="0.8"/>
+  <rect x="32" y="8" width="8" height="12" rx="3" fill="url(#chatGrad)"/>
+  <line x1="24" y1="14" x2="18" y2="8" stroke="#667eea" stroke-width="3" stroke-linecap="round"/>
+  <line x1="40" y1="14" x2="46" y2="8" stroke="#667eea" stroke-width="3" stroke-linecap="round"/>
+  <circle cx="32" cy="8" r="3" fill="#764ba2"/>
+</svg>`;
+
+const CHAT_SVG_GRADIENT = `<defs>
+  <linearGradient id="chatGrad" x1="0" y1="0" x2="1" y2="1">
+    <stop offset="0%" stop-color="#667eea"/>
+    <stop offset="100%" stop-color="#764ba2"/>
+  </linearGradient>
+</defs>`;
+
+const WELCOME_TEXT = '你好，我是掌柜智库。基于知识图谱与RAG技术的智能助手。上传文档后，即可向我提问，我会结合多路检索为您提供精准答案。';
+
+// ===========================
+//   State
+// ===========================
+const state = {
+  sessionId: null,       // current active session
+  sessions: [],          // [{ session_id, title, last_ts, message_count }]
+  isStream: true,        // streaming toggle
+  isLoading: false,      // waiting for answer
+  streamAbort: null,     // { close() } for SSE
+  hasUserInteracted: false, // whether user has ever sent a message in this tab
+};
+
+// ===========================
+//   DOM refs
+// ===========================
+const $ = id => document.getElementById(id);
+const dom = {
+  sessionList: $('sessionList'),
+  chatArea:    $('chatArea'),
+  inputArea:   $('inputArea'),
+  msgInput:    $('msgInput'),
+  btnSend:     $('btnSend'),
+  btnStream:   $('btnStream'),
+};
+
+// ===========================
+//   API Helpers
+// ===========================
+const API = {
+  base: '',
+
+  async listSessions() {
+    const res = await fetch(`${this.base}/sessions`);
+    if (!res.ok) throw new Error('load sessions failed');
+    const data = await res.json();
+    return data.sessions || [];
+  },
+
+  async query(query, sessionId, isStream) {
+    const res = await fetch(`${this.base}/query`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ query, session_id: sessionId, is_stream: isStream }),
+    });
+    if (!res.ok) throw new Error('query failed');
+    return res.json();
+  },
+
+  async getHistory(sessionId, limit = 50) {
+    const res = await fetch(`${this.base}/history/${sessionId}?limit=${limit}`);
+    if (!res.ok) throw new Error('load history failed');
+    return res.json();
+  },
+
+  async clearHistory(sessionId) {
+    const res = await fetch(`${this.base}/history/${sessionId}`, { method: 'DELETE' });
+    return res.json();
+  },
+};
+
+// ===========================
+//   Toast
+// ===========================
+function toast(msg, type = 'success') {
+  const el = document.createElement('div');
+  el.className = `toast ${type}`;
+  el.textContent = msg;
+  $('toastContainer').appendChild(el);
+  setTimeout(() => el.remove(), 2500);
+}
+
+// ===========================
+//   Sidebar: Render Sessions
+// ===========================
+async function loadSessions() {
+  try {
+    state.sessions = await API.listSessions();
+    renderSessionList();
+  } catch (e) {
+    console.error('load sessions error:', e);
+  }
+}
+
+function renderSessionList() {
+  const list = dom.sessionList;
+  if (state.sessions.length === 0) {
+    list.innerHTML = '<div class="empty-sessions">暂无历史对话</div>';
+    return;
+  }
+
+  list.innerHTML = state.sessions.map(s => {
+    const isActive = s.session_id === state.sessionId;
+    const timeStr = formatTime(s.last_ts);
+    return `
+      <div class="session-item${isActive ? ' active' : ''}"
+           data-id="${s.session_id}"
+           onclick="switchSession('${s.session_id}')">
+        <svg class="session-item-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+          <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/>
+        </svg>
+        <span class="session-title" title="${escapeHtml(s.title)}">${escapeHtml(s.title)}</span>
+        <span class="session-meta">${timeStr}</span>
+        <button class="session-delete" onclick="event.stopPropagation();deleteSession('${s.session_id}')"
+                title="删除">×</button>
+      </div>
+    `;
+  }).join('');
+}
+
+function formatTime(ts) {
+  if (!ts) return '';
+  const d = new Date(ts * 1000);
+  const now = new Date();
+  const diff = now - d;
+  if (diff < 60000) return '刚刚';
+  if (diff < 3600000) return `${Math.floor(diff/60000)}分钟前`;
+  if (diff < 86400000) return `${Math.floor(diff/3600000)}小时前`;
+  if (diff < 604800000) return `${Math.floor(diff/86400000)}天前`;
+  return `${d.getMonth()+1}/${d.getDate()}`;
+}
+
+function escapeHtml(str) {
+  const div = document.createElement('div');
+  div.textContent = str;
+  return div.innerHTML;
+}
+
+async function switchSession(id) {
+  stopStreaming();
+  state.sessionId = id;
+  state.hasUserInteracted = true;
+
+  dom.chatArea.style.display = 'block';
+  dom.chatArea.innerHTML = '';
+
+  try {
+    const data = await API.getHistory(id);
+    const msgs = data.items || [];
+    msgs.forEach(m => {
+      addMessage(m.role, m.text, m._id);
+    });
+    scrollBottom();
+  } catch (e) {
+    toast('加载历史记录失败', 'error');
+  }
+
+  renderSessionList();
+  dom.msgInput.focus();
+}
+
+// ===========================
+//   New / Delete Session
+// ===========================
+function newChat() {
+  stopStreaming();
+
+  state.sessionId = null;
+  state.isLoading = false;
+  state.hasUserInteracted = false;
+
+  // Show chat area with welcome AI message (robot avatar on left + bubble)
+  dom.chatArea.style.display = 'block';
+  dom.chatArea.innerHTML = '';
+  addMessage('assistant', WELCOME_TEXT);
+  dom.msgInput.value = '';
+  dom.msgInput.focus();
+  scrollBottom();
+
+  renderSessionList();
+}
+
+async function deleteSession(id) {
+  if (!confirm('确定删除这个对话？')) return;
+  try {
+    await API.clearHistory(id);
+    toast('已删除');
+    if (state.sessionId === id) newChat();
+    await loadSessions();
+  } catch (e) {
+    toast('删除失败', 'error');
+  }
+}
+
+// ===========================
+//   Messages
+// ===========================
+function addMessage(role, text, id) {
+  const row = document.createElement('div');
+  row.className = `msg-row ${role}`;
+  row.dataset.msgId = id || '';
+
+  // Avatar
+  const avatar = document.createElement('div');
+  avatar.className = 'msg-avatar';
+  if (role === 'user') {
+    avatar.textContent = '我';
+  } else {
+    // Robot SVG icon for AI
+    avatar.innerHTML = CHAT_SVG_GRADIENT + ROBOT_SVG;
+  }
+
+  // Column wrapper (bubble + optional node status)
+  const col = document.createElement('div');
+  col.className = 'msg-col';
+
+  const bubble = document.createElement('div');
+  bubble.className = 'msg-bubble';
+  bubble.textContent = text;
+  col.appendChild(bubble);
+
+  // Append children in correct order
+  if (role === 'user') {
+    row.appendChild(col);
+    row.appendChild(avatar);
+  } else {
+    row.appendChild(avatar);
+    row.appendChild(col);
+  }
+
+  dom.chatArea.appendChild(row);
+  return { row, col, bubble };
+}
+
+function scrollBottom() {
+  dom.chatArea.scrollTop = dom.chatArea.scrollHeight;
+}
+
+// ===========================
+//   Send Message
+// ===========================
+async function sendMessage() {
+  const input = dom.msgInput;
+  const query = input.value.trim();
+  if (!query || state.isLoading) return;
+
+  input.value = '';
+  state.isLoading = true;
+  state.hasUserInteracted = true;
+
+  // Clear previous node-status-bars (only current query shows progress)
+  dom.chatArea.querySelectorAll('.node-status-bar').forEach(el => el.remove());
+
+  // Ensure chat area is visible
+  dom.chatArea.style.display = 'block';
+  updateSendButton();
+
+  // Add user message
+  addMessage('user', query);
+
+  // Create assistant message placeholder
+  const { row: aiRow, col: aiCol, bubble: aiBubble } = addMessage('assistant', '');
+  const cursor = document.createElement('span');
+  cursor.className = 'streaming-cursor';
+  cursor.textContent = '|';
+  aiBubble.innerHTML = '';
+  aiBubble.appendChild(cursor);
+
+  // Node status area inside col (after bubble)
+  let nodeArea = null;
+
+  scrollBottom();
+
+  try {
+    if (state.isStream) {
+      await sendStream(query, aiRow, aiCol, aiBubble, cursor);
+    } else {
+      await sendNormal(query, aiBubble, cursor);
+    }
+  } catch (e) {
+    cursor.remove();
+    if (!aiBubble.textContent.trim()) {
+      aiBubble.textContent = '请求失败，请重试';
+    }
+    console.error(e);
+  } finally {
+    state.isLoading = false;
+    updateSendButton();
+    if (state.sessionId) {
+      loadSessions();
+    }
+  }
+}
+
+// ===========================
+//   Normal (non-stream) Mode
+// ===========================
+async function sendNormal(query, aiBubble, cursor) {
+  const data = await API.query(query, state.sessionId, false);
+  state.sessionId = data.session_id;
+  if (cursor) cursor.remove();
+  aiBubble.textContent = data.answer || '(无内容)';
+  renderSessionList();
+  scrollBottom();
+}
+
+// ===========================
+//   Stream Mode (SSE)
+// ===========================
+async function sendStream(query, aiRow, aiCol, aiBubble, cursor) {
+  // 1) Submit query, get session_id
+  const res = await fetch('/query', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ query, session_id: state.sessionId || undefined, is_stream: true }),
+  });
+  const submitData = await res.json();
+  state.sessionId = submitData.session_id;
+  renderSessionList();
+
+  // 2) Node status panel
+  let nodeArea = document.createElement('div');
+  nodeArea.className = 'node-status-bar';
+  nodeArea.style.display = 'none'; // shown on first progress event
+  aiCol.appendChild(nodeArea);
+
+  return new Promise((resolve) => {
+    let resolved = false;
+    const done = () => { if (!resolved) { resolved = true; resolve(); } };
+
+    const evtSource = new EventSource(`/stream/${state.sessionId}`);
+    state.streamAbort = { close: () => { evtSource.close(); done(); } };
+
+    evtSource.addEventListener('ready', () => {});
+
+    evtSource.addEventListener('delta', (e) => {
+      const d = JSON.parse(e.data);
+      const delta = d.delta || '';
+      if (cursor) {
+        aiBubble.insertBefore(document.createTextNode(delta), cursor);
+      } else {
+        aiBubble.textContent += delta;
+      }
+      scrollBottom();
+    });
+
+    evtSource.addEventListener('progress', (e) => {
+      const d = JSON.parse(e.data);
+      const doneList = d.done_list || [];
+      const runList = d.running_list || [];
+      const pendList = d.pending_list || [];
+
+      if (doneList.length || runList.length || pendList.length) {
+        nodeArea.style.display = 'flex';
+        nodeArea.innerHTML = [
+          ...doneList.map(n => `<span class="node-pill done">${escapeHtml(n)}</span>`),
+          ...runList.map(n => `<span class="node-pill running">${escapeHtml(n)}</span>`),
+          ...pendList.map(n => `<span class="node-pill pending">${escapeHtml(n)}</span>`),
+        ].join('');
+      }
+    });
+
+    evtSource.addEventListener('final', (e) => {
+      const d = JSON.parse(e.data);
+      const answer = d.answer || d.text || '';
+      if (cursor) cursor.remove();
+      if (answer) aiBubble.textContent = answer;
+      // Remove node status bar after completion (cleanup for current query)
+      if (nodeArea) nodeArea.remove();
+      evtSource.close();
+      done();
+    });
+
+    evtSource.addEventListener('error', () => {
+      if (cursor) cursor.remove();
+      if (!aiBubble.textContent.trim()) {
+        aiBubble.textContent = '连接中断';
+      }
+      if (nodeArea) nodeArea.remove();
+      evtSource.close();
+      done();
+    });
+
+    evtSource.onerror = () => {
+      if (cursor) cursor.remove();
+      if (!aiBubble.textContent.trim()) {
+        aiBubble.textContent = '连接中断';
+      }
+      if (nodeArea) nodeArea.remove();
+      evtSource.close();
+      done();
+    };
+  });
+}
+
+// ===========================
+//   Abort
+// ===========================
+function stopStreaming() {
+  abortStream();
+  state.isLoading = false;
+  updateSendButton();
+
+  // Remove cursor
+  const cursors = dom.chatArea.querySelectorAll('.streaming-cursor');
+  cursors.forEach(c => c.remove());
+}
+
+function abortStream() {
+  if (state.streamAbort) {
+    state.streamAbort.close();
+    state.streamAbort = null;
+  }
+}
+
+// ===========================
+//   Toggle Stream Mode
+// ===========================
+function toggleStream() {
+  state.isStream = !state.isStream;
+  dom.btnStream.classList.toggle('active', state.isStream);
+  dom.btnStream.textContent = state.isStream ? '流式' : '普通';
+}
+
+// ===========================
+//   Send Button State
+// ===========================
+function updateSendButton() {
+  if (state.isLoading) {
+    dom.btnSend.className = 'btn-stop';
+    dom.btnSend.innerHTML = `<svg viewBox="0 0 24 24" fill="currentColor"><rect x="6" y="6" width="12" height="12" rx="1"/></svg>`;
+    dom.btnSend.onclick = stopStreaming;
+    dom.btnSend.title = '停止生成';
+  } else {
+    dom.btnSend.className = 'btn-send';
+    dom.btnSend.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><line x1="22" y1="2" x2="11" y2="13"/><polygon points="22 2 15 22 11 13 2 9 22 2"/></svg>`;
+    dom.btnSend.onclick = sendMessage;
+    dom.btnSend.title = '发送';
+  }
+}
+
+// ===========================
+//   Init
+// ===========================
+function init() {
+  loadSessions();
+  newChat(); // Show welcome AI message on first load
+}
+
+init();
+</script>
+
+</body>
+</html>

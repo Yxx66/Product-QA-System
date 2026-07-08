@@ -1,0 +1,50 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+*.so
+
+# Virtual Environment
+.venv/
+venv/
+env/
+
+# Environment Variables (真实密钥)
+.env
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Docker volumes / database files
+volumes/
+*.tar
+*.db
+*.wt
+
+# Temp / runtime data
+import_temp_dir/
+mineru_output/
+uploads/
+test_mineru_cli/
+
+# Test files
+test_data/
+*.ipynb
+*.docx
+test.pdf
+
+# Local model paths (模型文件过大，不应上传)
+models/
+*.model_cache/

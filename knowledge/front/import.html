@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="zh">
+<head>
+    <meta charset="UTF-8">
+    <title>知识库导入</title>
+    <style>
+        body { font-family: Arial, sans-serif; max-width: 600px; margin: 50px auto; }
+        .upload-area { border: 2px dashed #ccc; padding: 40px; text-align: center; cursor: pointer; }
+        .upload-area:hover { border-color: #4CAF50; }
+        .progress-bar { width: 100%; height: 20px; background: #eee; border-radius: 10px; overflow: hidden; margin: 10px 0; }
+        .progress-fill { height: 100%; background: #4CAF50; transition: width 0.3s; }
+        .log-list { list-style: none; padding: 0; }
+        .log-list li { padding: 4px 0; color: #333; }
+        .log-list li.done { color: #4CAF50; }
+        .log-list li.running { color: #FF9800; font-weight: bold; }
+        .status { margin-top: 10px; font-size: 14px; color: #666; }
+    </style>
+</head>
+<body>
+    <h1>知识库导入</h1>
+
+    <!-- 上传区域 -->
+    <div class="upload-area" id="uploadArea">
+        <p>点击或拖拽文件到这里上传</p>
+        <input type="file" id="fileInput" accept=".pdf,.md" hidden>
+    </div>
+
+    <!-- 进度区域 -->
+    <div id="progressSection" style="display:none;">
+        <div class="progress-bar">
+            <div class="progress-fill" id="progressFill" style="width:0%"></div>
+        </div>
+        <ul class="log-list" id="logList"></ul>
+        <div class="status" id="statusText"></div>
+    </div>
+
+    <script>
+        const API_BASE = 'http://127.0.0.1:8000';
+        const TOTAL_STEPS = 8;  // 总节点数
+
+        // 上传区域点击
+        document.getElementById('uploadArea').onclick = () => {
+            document.getElementById('fileInput').click();
+        };
+
+        // 文件选择后上传
+        document.getElementById('fileInput').onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) uploadFile(file);
+        };
+
+        // 上传文件
+        async function uploadFile(file) {
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const res = await fetch(`${API_BASE}/upload`, {
+                    method: 'POST',
+                    body: formData,
+                });
+                const data = await res.json();
+                const taskId = data.task_id;
+
+                // 显示进度区域
+                document.getElementById('progressSection').style.display = 'block';
+                document.getElementById('statusText').textContent = '任务ID: ' + taskId;
+
+                // 开始轮询
+                pollStatus(taskId);
+            } catch (err) {
+                alert('上传失败: ' + err.message);
+            }
+        }
+
+        // 轮询任务状态
+        function pollStatus(taskId) {
+            const interval = setInterval(async () => {
+                try {
+                    const res = await fetch(`${API_BASE}/status/${taskId}`);
+                    const data = await res.json();
+
+                    // 更新日志列表
+                    renderLogs(data.done_list, data.running_list);
+
+                    // 计算进度
+                    const percentage = calculateProgress(data.done_list, data.running_list);
+                    document.getElementById('progressFill').style.width = percentage + '%';
+
+                    // 判断状态
+                    if (data.status === 'completed') {
+                        document.getElementById('progressFill').style.width = '100%';
+                        document.getElementById('statusText').textContent = '导入完成!';
+                        clearInterval(interval);
+                    } else if (data.status === 'failed') {
+                        document.getElementById('statusText').textContent = '导入失败';
+                        clearInterval(interval);
+                    }
+                } catch (err) {
+                    console.error('轮询失败:', err);
+                }
+            }, 1500);  // 每 1.5 秒轮询一次
+        }
+
+        // 渲染日志
+        function renderLogs(doneList, runningList) {
+            const logList = document.getElementById('logList');
+            logList.innerHTML = '';
+
+            (doneList || []).forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'done';
+                li.textContent = '✓ ' + item;
+                logList.appendChild(li);
+            });
+
+            (runningList || []).forEach(item => {
+                const li = document.createElement('li');
+                li.className = 'running';
+                li.textContent = '⟳ ' + item + '...';
+                logList.appendChild(li);
+            });
+        }
+
+        // 计算进度百分比
+        function calculateProgress(doneList, runningList) {
+            const done = (doneList || []).length;
+            const running = (runningList || []).length;
+            let pct = (done / TOTAL_STEPS) * 100;
+
+            // 有节点在运行时加半步
+            if (running > 0) pct += (0.5 / TOTAL_STEPS) * 100;
+
+            // 未完成前最高 95%
+            return Math.min(pct, 95);
+        }
+    </script>
+</body>
+</html>

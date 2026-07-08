@@ -1,0 +1,159 @@
+version: "3.8"
+
+services:
+  # ==================== MongoDB 文档数据库 ====================
+  mongodb:
+    image: mongo:7.0
+    container_name: iq-mongodb
+    restart: unless-stopped
+    ports:
+      - "27017:27017"
+    environment:
+      MONGO_INITDB_ROOT_USERNAME: admin
+      MONGO_INITDB_ROOT_PASSWORD: admin123
+    volumes:
+      - mongodb_data:/data/db
+    networks:
+      - iq-network
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== Neo4j 图数据库 ====================
+  neo4j:
+    image: neo4j:5.26-community
+    container_name: iq-neo4j
+    restart: unless-stopped
+    ports:
+      - "7474:7474"   # HTTP
+      - "7687:7687"   # Bolt
+    environment:
+      NEO4J_AUTH: neo4j/neo4j123456
+      NEO4J_PLUGINS: '["apoc"]'
+    volumes:
+      - neo4j_data:/data
+      - neo4j_logs:/logs
+    networks:
+      - iq-network
+    healthcheck:
+      test: cypher-shell -u neo4j -p neo4j123456 "RETURN 1;"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== MinIO 对象存储 ====================
+  minio:
+    image: minio/minio:RELEASE.2025-03-12T18-04-18Z
+    container_name: iq-minio
+    restart: unless-stopped
+    ports:
+      - "9000:9000"   # API
+      - "9001:9001"   # Console
+    environment:
+      MINIO_ROOT_USER: minioadmin
+      MINIO_ROOT_PASSWORD: minioadmin123
+    command: server /data --console-address ":9001"
+    volumes:
+      - minio_data:/data
+    networks:
+      - iq-network
+    healthcheck:
+      test: ["CMD", "mc", "ready", "local"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ==================== Etcd (Milvus 依赖) ====================
+  etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    container_name: iq-etcd
+    restart: unless-stopped
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+      - ETCD_SNAPSHOT_COUNT=50000
+    volumes:
+      - etcd_data:/etcd
+    command: etcd -advertise-client-urls=http://127.0.0.1:2379 -listen-client-urls http://0.0.0.0:2379 --data-dir /etcd
+    networks:
+      - iq-network
+    healthcheck:
+      test: ["CMD", "etcdctl", "endpoint", "health"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # ==================== MinIO (Milvus 内部使用) ====================
+  minio-milvus:
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    container_name: iq-minio-milvus
+    restart: unless-stopped
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    command: minio server /minio_data --console-address ":9001"
+    volumes:
+      - milvus_minio_data:/minio_data
+    networks:
+      - iq-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9000/minio/health/live"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # ==================== Milvus 向量数据库 ====================
+  milvus:
+    image: milvusdb/milvus:v2.4.15
+    container_name: iq-milvus
+    restart: unless-stopped
+    depends_on:
+      - etcd
+      - minio-milvus
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    environment:
+      ETCD_ENDPOINTS: etcd:2379
+      MINIO_ADDRESS: minio-milvus:9000
+      MINIO_ACCESS_KEY_ID: minioadmin
+      MINIO_SECRET_ACCESS_KEY: minioadmin
+    volumes:
+      - milvus_data:/var/lib/milvus
+    networks:
+      - iq-network
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:9091/healthz"]
+      interval: 30s
+      timeout: 20s
+      retries: 3
+
+  # ==================== Milvus Attu 管理界面（可选） ====================
+  attu:
+    image: zilliz/attu:v2.4
+    container_name: iq-attu
+    restart: unless-stopped
+    depends_on:
+      - milvus
+    ports:
+      - "8001:3000"
+    environment:
+      MILVUS_URL: milvus:19530
+    networks:
+      - iq-network
+
+volumes:
+  mongodb_data:
+  neo4j_data:
+  neo4j_logs:
+  minio_data:
+  etcd_data:
+  milvus_minio_data:
+  milvus_data:
+
+networks:
+  iq-network:
+    driver: bridge

@@ -1,0 +1,51 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+
+# Virtual Environment
+.env
+.venv/
+venv/
+env/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Git
+.git/
+.gitignore
+.gitattributes
+
+# Docker
+docker-compose.yml
+Dockerfile
+.dockerignore
+
+# Logs & Temp
+*.log
+logs/
+import_temp_dir/
+mineru_output/
+uploads/
+
+# Test
+test_data/
+test.pdf
+*.ipynb
+
+# Documentation
+README.md
+*.md
+
+# Models (挂载宿主机目录)
+models/
+*.model_cache/
