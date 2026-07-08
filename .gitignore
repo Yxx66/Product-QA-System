@@ -48,3 +48,4 @@ test.pdf
 # Local model paths (模型文件过大，不应上传)
 models/
 *.model_cache/
+# local model cache

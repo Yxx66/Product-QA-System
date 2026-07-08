@@ -246,3 +246,4 @@ intelligence_query/
 ## License
 
 MIT
+MIT License
