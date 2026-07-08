@@ -157,3 +157,4 @@ volumes:
 networks:
   iq-network:
     driver: bridge
+# default network

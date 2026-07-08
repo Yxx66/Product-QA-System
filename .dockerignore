@@ -49,3 +49,4 @@ README.md
 # Models (挂载宿主机目录)
 models/
 *.model_cache/
+# local model cache
