@@ -5,6 +5,7 @@ POST /upload    — 上传文件，启动后台任务
 GET  /status/{task_id} — 查询任务状态
 """
 from fastapi import APIRouter, UploadFile, File, BackgroundTasks, Depends
+
 from knowledge.schema.upload_schema import UploadResponse
 from knowledge.schema.task_schema import TaskStatusResponse
 from knowledge.services.file_import_service import FileImportService

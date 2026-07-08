@@ -8,6 +8,7 @@
   GET    /sessions           — 列出所有历史会话
 """
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Depends
+
 from fastapi.responses import StreamingResponse
 
 from knowledge.schema.query_schema import QueryRequest, QueryResponse, StreamSubmitResponse

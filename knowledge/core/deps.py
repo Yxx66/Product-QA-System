@@ -4,6 +4,7 @@ FastAPI 依赖注入
 用 @lru_cache 保证服务全局只创建一次（单例模式）。
 """
 from functools import lru_cache
+
 from pathlib import Path
 from knowledge.services.task_service import TaskService
 from knowledge.services.file_import_service import FileImportService
